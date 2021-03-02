@@ -57,3 +57,8 @@ Note
 
 This project has been set up using PyScaffold 3.2. For details and usage
 information on PyScaffold see https://pyscaffold.org/.
+
+Documentation
+=============
+
+This project is documented here https://openteams.gitlab.io/safetydance/.
