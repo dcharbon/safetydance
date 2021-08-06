@@ -1,9 +1,11 @@
 from ast import (
     alias,
     arg,
+    Assign,
     Attribute,
-    copy_location,
     Call,
+    Constant,
+    copy_location,
     dump,
     fix_missing_locations,
     Index,
@@ -15,12 +17,13 @@ from ast import (
     NodeTransformer,
     parse,
     Str,
+    Store,
     Subscript,
 )
-from astor import code_to_ast, dump_tree
+from astor import code_to_ast, dump_tree, to_source
 from dataclasses import dataclass
 from importlib import import_module
-from inspect import getclosurevars, getmodule
+from inspect import currentframe, getclosurevars, getmodule, stack
 from types import ModuleType
 from typing import Any, Callable, Dict, Type, TypeVar, Generic
 from .extensions import enter_step, exit_step, STEPBODY_EXTENSION_REGISTRY
@@ -75,18 +78,26 @@ class NestingContext(Context):
         raise KeyError(key)
 
 
+def get_context():
+    calling_frame = currentframe().f_back
+    parent_frame = calling_frame.f_back
+    context = parent_frame.f_locals.get('context', None)
+    return context
+
+
 class Step:
     def __init__(self, f: Callable, step_rewriter):
         self.f_original = f
         self.f = None
         self.step_rewriter = step_rewriter
 
-    def __call__(self, context: Context, *args, **kwargs):
+    def __call__(self, *args, **kwargs):
         __tracebackhide__ = True
         if self.f is None:
             self.rewrite()
+        context = get_context()
         enter_step(context, self)
-        self.f(context, *args, **kwargs)
+        self.f(*args, **kwargs)
         exit_step(context, self)
 
     def rewrite(self):
@@ -98,8 +109,12 @@ class Step:
         out_tree = self.step_rewriter(self.f_original).visit(in_tree)
         new_func_name = self.f_original.__name__
         func_scope = self.f_original.__globals__
-        if "Context" not in self.f_original.__globals__:
-            self.f_original.__globals__["Context"] = Context
+        for key, value in (
+            ("Context", Context),
+            ("safetydance", __import__(__name__)),
+        ):
+            if key not in self.f_original.__globals__:
+                self.f_original.__globals__[key] = value
         # Compile the new function in the old function's scope. If we don't change the
         # name, this actually overrides the old function with the new one
         if not isinstance(out_tree, Module):
@@ -127,14 +142,6 @@ class StepRewriter(NodeTransformer):
         self.step_body_rewriter = StepBodyRewriter(f)
         self.modulevars = vars(getmodule(f))
 
-    def fixup_arguments(self, arguments_node):
-        """
-        Rewrite args of the function so that it takes a positional Context argument.
-        """
-        context_arg = arg("context", Name("Context", Load()))
-        arguments_node.args.insert(0, context_arg)
-        return fix_missing_locations(arguments_node)
-
     def is_step_decorator(self, decorator):
         if not hasattr(decorator, "id"):
             return False
@@ -143,13 +150,25 @@ class StepRewriter(NodeTransformer):
 
     def visit_FunctionDef(self, node):
         self.generic_visit(node)
-        self.fixup_arguments(node.args)
         node.decorator_list = [
             decorator
             for decorator in node.decorator_list
             if not self.is_step_decorator(decorator)
         ]
-        newbody = list()
+        newbody = [
+            # context = safetydance.get_context()
+            Assign(
+                targets=[
+                    Name(id='context', ctx=Store()),
+                ],
+                value=Call(
+                    func=Attribute(value=Name(id='safetydance', ctx=Load()), attr='get_context', ctx=Load()),
+                    args=[],
+                    keywords=[],
+                ),
+                type_comment=None,
+            ),
+        ]
         for n in node.body:
             n = self.step_body_rewriter.visit(n)
             try:
@@ -176,10 +195,8 @@ class Script(Step):
         __tracebackhide__ = True
         if self.f is None:
             self.rewrite()
-        context = NestingContext()
-        if "context" in kwargs:
-            context.parent = kwargs["context"]
-        kwargs["context"] = context
+        parent_context = get_context()
+        context = NestingContext(parent=parent_context) 
         enter_step(context, self)
         self.f(*args, **kwargs)
         exit_step(context, self)
@@ -206,35 +223,6 @@ class StepBodyRewriter(NodeTransformer):
         for transformer in STEPBODY_EXTENSION_REGISTRY:
             node = transformer.visit(node)
         return node
-
-    def visit_Call(self, call):
-        """
-        Is it a call to a step? If so, rewrite it!
-        The call should pass the context along, that's it.
-        """
-        call.args = [self.visit(arg) for arg in call.args]
-        call.keywords = [self.visit(arg) for arg in call.keywords]
-        if type(call.func) is Attribute:
-            call.func = self.visit_Attribute(call.func)
-            return call
-        resolved_callable = self.resolve(call.func.id)
-        if resolved_callable is None:
-            return call
-        if not isinstance(resolved_callable, Step):
-            if hasattr(resolved_callable, "IsStep"):
-                new_args = [copy_location(Name("context", Load()), call)]
-                new_args.extend(call.args)
-                return fix_missing_locations(
-                    copy_location(Call(call.func, new_args, call.keywords), call)
-                )
-            else:
-                return call
-        # if it's a step, rewrite
-        new_args = [copy_location(Name("context", Load()), call)]
-        new_args.extend(call.args)
-        return fix_missing_locations(
-            copy_location(Call(call.func, new_args, call.keywords), call)
-        )
 
     def visit_Name(self, node):
         """
@@ -310,19 +298,8 @@ class StepBodyRewriter(NodeTransformer):
         return (node, None)
 
 
-class ScriptRewriter(StepRewriter):
-    def fixup_arguments(self, arguments_node):
-        """
-        Rewrite args of the function so that it takes a Context argument.
-        """
-        context_arg = arg("context", Name("Context", Load()))
-        arguments_node.kwonlyargs.insert(0, context_arg)
-        arguments_node.kw_defaults.insert(0, NameConstant(None))
-        return fix_missing_locations(arguments_node)
-
-
 @step_decorator
-def script(f, script_rewriter=ScriptRewriter, script_class=Script):
+def script(f, script_rewriter=StepRewriter, script_class=Script):
     """
     Rewrite the function as a Script
     remember Signature.replace
