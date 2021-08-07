@@ -7,8 +7,7 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.7"
-#astor = "^0.8.1"
-astor = { git="https://github.com/Quansight/astor.git", branch="issue-174" }
+astor = { git="https://github.com/berkerpeksag/astor.git", rev="6ce175b8fe5890656f05cd0f5af21a32523386fb" }
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.2"
