@@ -1,35 +1,27 @@
 from ast import (
-    alias,
-    arg,
     Assign,
     Attribute,
     Call,
-    Constant,
     copy_location,
-    dump,
     fix_missing_locations,
     Index,
-    ImportFrom,
     Load,
     Module,
     Name,
-    NameConstant,
     NodeTransformer,
     parse,
-    Str,
     Store,
     Subscript,
 )
-from astor import code_to_ast, dump_tree, to_source
 from dataclasses import dataclass
 from importlib import import_module
 from inspect import currentframe, getclosurevars, getmodule, stack
 from types import ModuleType
 from typing import Any, Callable, Dict, Type, TypeVar, Generic
 from .extensions import enter_step, exit_step, STEPBODY_EXTENSION_REGISTRY
+from .file_util import code_to_ast
 import functools
 import inspect
-import sys
 
 
 def step_decorator(f):
