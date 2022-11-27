@@ -1,22 +1,19 @@
 #!/usr/bin/env python3
 import safetydance.extensions as sbe
-from safetydance import step, step_data, Context, script
+from safetydance import step, step_data, script
 from ast import (
     NodeTransformer,
     Name,
     Index,
     Call,
     Str,
-    Num,
     Expr,
-    Eq,
     Subscript,
     Load,
     Store,
-    Assert,
-    Compare,
-    dump,
 )
+from sys import version_info
+
 
 x = step_data(int)
 y = step_data(int)
@@ -61,13 +58,15 @@ class StepBodyExtensionOne(NodeTransformer):
             0
         ].value.id == "context":
             a = node.value
+            # AST changes starting in Python 3.8
+            target_name = node.targets[0].slice.id if version_info[:2] > (3, 8) else node.targets[0].slice.value.id
             called_func = Call(
                 func=Name(id="print", ctx=Load()),
                 args=[
                     Str(
                         s=f"""
                 a has just been assigned to the value {a.n} inherited from
-                {node.targets[0].slice.value.id} whose value was {node.value.n}.
+                {target_name} whose value was {node.value.n}.
                 """
                     )
                 ],
