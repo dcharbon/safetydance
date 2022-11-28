@@ -55,3 +55,4 @@ rever/
 .vscode/settings.json
 
 .nox
+docs/_build

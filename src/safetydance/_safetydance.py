@@ -20,6 +20,7 @@ from types import ModuleType
 from typing import Any, Callable, Dict, Type, TypeVar, Generic
 from .extensions import enter_step, exit_step, STEPBODY_EXTENSION_REGISTRY
 from .file_util import code_to_ast
+from .jupyter import is_jupyter
 import functools
 import inspect
 
@@ -93,7 +94,7 @@ class Step:
         exit_step(context, self)
 
     def rewrite(self):
-        if hasattr(self.f_original, "__rewritten_step__"):
+        if hasattr(self.f_original, "__rewritten_step__") and not is_jupyter():
             self.f = self.f_original.__rewritten_step__
             return
         in_tree = code_to_ast(self.f_original)
@@ -122,7 +123,7 @@ class Step:
         self.f.IsStep = True
         setattr(self.f_original, "__rewritten_step__", self.f)
         # make sure that the function hasn't been overwritten due to the reparsing of
-        # the source file.
+        # the source file. This is necessary to support extensions.
         m = import_module(self.__module__)
         setattr(m, self.__name__, self)
 

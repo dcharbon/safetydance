@@ -16,6 +16,7 @@ to eliminate the dependency on the astor library.
 
 """
 
+from .jupyter import is_jupyter
 import ast
 import sys
 import os
@@ -99,18 +100,21 @@ class CodeToAst(object):
         self.cache = cache or {}
 
     def __call__(self, codeobj):
-        cache = self.cache
         fname = self.get_file_info(codeobj)[0]
         key = (fname, codeobj.__name__)
-        result = cache.get(key)
+        result = self.cache.get(key) if not is_jupyter() else None
         if result is not None:
             return result
-        cache[key] = mod_ast = self.parse_file(fname)
+        if not is_jupyter():
+            self.cache[key] = mod_ast = self.parse_file(fname)
+        else:
+            self.cache[key] = mod_ast = ast.parse(codeobj.__globals__['_ih'][1], filename=fname)
+
         for obj in mod_ast.body:
             if not isinstance(obj, ast.FunctionDef):
                 continue
-            cache[(fname, obj.name)] = obj
-        return cache[key]
+            self.cache[(fname, obj.name)] = obj
+        return self.cache[key]
 
 
 code_to_ast = CodeToAst()
