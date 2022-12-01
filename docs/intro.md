@@ -64,7 +64,7 @@ def do_cha_cha_slide(count):
     Take_it_back_now_yall()
     One_hop_this_time()
     # prep the dancers to use their right foot, then stomp
-    Right_foot(); let_stomp()
+    Right_foot(); lets_stomp()
     # prep the dancers to use their left foot, then stomp
     Left_foot(); lets_stomp()
     Cha_cha_real_smooth()
