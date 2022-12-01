@@ -90,8 +90,9 @@ class Step:
             self.rewrite()
         context = get_context()
         enter_step(context, self)
-        self.f(*args, **kwargs)
+        ret = self.f(*args, **kwargs)
         exit_step(context, self)
+        return ret
 
     def rewrite(self):
         if hasattr(self.f_original, "__rewritten_step__") and not is_jupyter():
@@ -191,8 +192,9 @@ class Script(Step):
         parent_context = get_context()
         context = NestingContext(parent=parent_context) 
         enter_step(context, self)
-        self.f(*args, **kwargs)
+        ret = self.f(*args, **kwargs)
         exit_step(context, self)
+        return ret
 
 
 class StepBodyRewriter(NodeTransformer):
