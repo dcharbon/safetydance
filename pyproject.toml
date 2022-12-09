@@ -1,11 +1,12 @@
 [tool.poetry]
 name = "safetydance"
-version = "0.3.1"
+version = "0.3.2"
 description = "A typesafe system for defining and composing steps."
 authors = ["David Charboneau <david@adadabase.com>"]
 license = "MIT"
 repository = "https://github.com/dcharbon/safetydance.git"
 homepage = "https://github.com/dcharbon/safetydance"
+readme = "README.md"
 
 
 [tool.poetry.dependencies]

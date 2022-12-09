@@ -1,15 +1,11 @@
-===========
-safetydance
-===========
-
+# safetydance
 
 `safetydance` is a Python framework for defining type-safe and flexibly composable
 application steps with a shared execution context for sharing variables between the
 steps. The design of safetydance is partially inspired by `<https://cucumber.io>`_.
 
 
-Description
-===========
+## Description
 
 `safetydance` defines a set of decorators that rewrite functions as steps and scripts.
 
@@ -26,8 +22,7 @@ execution context; that is, if a step is used by both an originating and a neste
 the context variables it accesses are determined by the calling script's execution
 context.
 
-Context Scope Variables
------------------------
+### Context Scope Variables
 
 A context scope variable is sort of like a global variable. The run of a script defines
 a context where `context_data` variables are stored for access by steps.
@@ -37,8 +32,7 @@ assumed shared knowledge, or context. For `safetydance`, the context scope provi
 way for steps to share assumed context to make it possible to provide a more
 conversational style of programming
 
-Future Work
-===========
+## Future Work
 
 * Mypy extension to validate scripts. For example, prove that a script shouldn't fail
   due to missing `context_data` for any step in the script.
@@ -47,18 +41,8 @@ Future Work
 * Parallel evaluation for independent up to a join for DAG legs of a script.
 * Diagram output for script DAGs.
 
-Setup for Development
-=====================
+## Setup for Development
 
-Run `python setup.py develop`. Preferably, use `conda` or another virtual environment.
-
-Note
-====
-
-This project has been set up using PyScaffold 3.2. For details and usage
-information on PyScaffold see https://pyscaffold.org/.
-
-Documentation
-=============
-
-This project is documented here https://openteams.gitlab.io/safetydance/.
+```bash
+poetry install
+```
