@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "safetydance"
-version = "0.3.0"
+version = "0.3.1"
 description = "A typesafe system for defining and composing steps."
 authors = ["David Charboneau <david@adadabase.com>"]
 license = "MIT"
