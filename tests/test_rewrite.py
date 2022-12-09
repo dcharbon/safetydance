@@ -218,3 +218,13 @@ def test_another_test_of_nested_script_calls():
 @script
 def test_use_of_lambda():
     step_using_lambda()
+
+
+@step
+def step_with_return_value():
+    return 42
+
+
+@script
+def test_receiving_step_return_values():
+    assert step_with_return_value() == 42
