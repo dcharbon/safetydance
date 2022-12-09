@@ -4,6 +4,9 @@ version = "0.3.0"
 description = "A typesafe system for defining and composing steps."
 authors = ["David Charboneau <david@adadabase.com>"]
 license = "MIT"
+repository = "https://github.com/dcharbon/safetydance.git"
+homepage = "https://github.com/dcharbon/safetydance"
+
 
 [tool.poetry.dependencies]
 python = "^3.7"
