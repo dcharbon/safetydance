@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 
 import pytest
 
@@ -9,6 +10,21 @@ from safetydance import context, context_data
 class TestData:
     basic: str
     with_initializer: str = lambda ctx: "initialized_value"
+
+
+@dataclass
+class ComplexType:
+    value: int
+    name: str
+
+
+@context_data
+class MultipleData:
+    """Context data class with multiple independent properties"""
+    counter: int
+    name: str
+    complex_obj: ComplexType
+    data_dict: dict
 
 
 @context
@@ -87,3 +103,132 @@ def test_context_tracing(caplog):  # Use pytest's caplog fixture
         for record in caplog.records
         if record.levelname == "INFO"
     )
+
+
+@context
+def test_parameter_shadowing():
+    """Test that function parameters don't interfere with context properties of the same name.
+
+    This verifies that local function parameters shadow context properties without affecting
+    the global context values.
+    """
+    # Set up context data
+    MultipleData.counter = 42
+    MultipleData.name = "global_name"
+
+    # Function with parameters that shadow context property names
+    def function_with_shadowing(counter, name, extra=None):
+        # These are local parameters, not context properties
+        assert counter == "string_value"  # Local parameter is a string
+        assert name == 99.5  # Local parameter is a float
+        assert extra == "extra_value"
+
+        # Context properties should still be accessible and unchanged
+        assert MultipleData.counter == 42  # Context still has int
+        assert MultipleData.name == "global_name"  # Context still has string
+
+        return f"{counter}-{name}-{extra}"
+
+    # Call with arguments that shadow context property names
+    result = function_with_shadowing("string_value", 99.5, extra="extra_value")
+    assert result == "string_value-99.5-extra_value"
+
+    # Verify context properties are unchanged after function returns
+    assert MultipleData.counter == 42
+    assert MultipleData.name == "global_name"
+
+
+@context
+def test_multiple_independent_properties():
+    """Test that multiple context properties work independently without interference."""
+    # Set all properties to different types
+    MultipleData.counter = 100
+    MultipleData.name = "test_name"
+    MultipleData.complex_obj = ComplexType(value=42, name="complex")
+    MultipleData.data_dict = {"key1": "value1", "key2": 2}
+
+    # Verify all are set correctly
+    assert MultipleData.counter == 100
+    assert MultipleData.name == "test_name"
+    assert isinstance(MultipleData.complex_obj, ComplexType)
+    assert MultipleData.complex_obj.value == 42
+    assert MultipleData.complex_obj.name == "complex"
+    assert MultipleData.data_dict == {"key1": "value1", "key2": 2}
+
+    # Modify one property
+    MultipleData.counter = 200
+
+    # Verify only that property changed
+    assert MultipleData.counter == 200
+    assert MultipleData.name == "test_name"  # Unchanged
+    assert MultipleData.complex_obj.value == 42  # Unchanged
+    assert MultipleData.data_dict["key1"] == "value1"  # Unchanged
+
+
+@context
+def test_complex_data_types():
+    """Test that complex data types (dataclasses, custom objects) work correctly in context."""
+    # Create and store a complex object
+    obj = ComplexType(value=123, name="test_object")
+    MultipleData.complex_obj = obj
+
+    # Retrieve and verify
+    retrieved = MultipleData.complex_obj
+    assert isinstance(retrieved, ComplexType)
+    assert retrieved.value == 123
+    assert retrieved.name == "test_object"
+    assert retrieved is obj  # Should be the same object
+
+    # Modify the object
+    retrieved.value = 456
+
+    # Verify the context still holds the modified object
+    assert MultipleData.complex_obj.value == 456
+    assert MultipleData.complex_obj is obj
+
+
+@context
+def test_nested_context_sharing():
+    """Test that context is properly shared across nested function calls."""
+
+    def level_one():
+        """First level: sets initial values"""
+        MultipleData.counter = 1
+        MultipleData.name = "level_one"
+        MultipleData.data_dict = {"level": 1}
+
+    def level_two():
+        """Second level: reads and modifies values from level_one"""
+        assert MultipleData.counter == 1
+        assert MultipleData.name == "level_one"
+
+        MultipleData.counter = 2
+        MultipleData.name = "level_two"
+        MultipleData.data_dict["level"] = 2
+
+    def level_three(counter, name):
+        """Third level: parameters shadow context, but context is still accessible"""
+        # Parameters shadow context property names
+        assert counter == "param_value"
+        assert name == "param_name"
+
+        # But context properties are still accessible
+        assert MultipleData.counter == 2
+        assert MultipleData.name == "level_two"
+        assert MultipleData.data_dict["level"] == 2
+
+        # Modify context
+        MultipleData.counter = 3
+        MultipleData.data_dict["level"] = 3
+
+    # Execute the nested call chain
+    level_one()
+    assert MultipleData.counter == 1
+
+    level_two()
+    assert MultipleData.counter == 2
+
+    level_three("param_value", "param_name")
+    assert MultipleData.counter == 3
+    assert MultipleData.name == "level_two"  # Unchanged by level_three
+    assert MultipleData.data_dict["level"] == 3
