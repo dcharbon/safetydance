@@ -3,6 +3,7 @@ import logging
 import pytest
 
 from safetydance import context, context_data
+from safetydance._safetydance import ContextData
 
 
 @context_data

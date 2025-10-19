@@ -243,10 +243,10 @@ class ContextData(type):
 def context_data(cls):
     """
     Class decorator that sets the metaclass of the decorated class to ContextData.
-    
+
     This allows classes to be defined without explicitly specifying the metaclass,
     making the API more user-friendly.
-    
+
     Usage:
         @context_data
         class MyData:
@@ -258,6 +258,10 @@ def context_data(cls):
     for key, value in cls.__dict__.items():
         if key != "__dict__" and key != "__weakref__":
             namespace[key] = value
-    
+
+    # Ensure __annotations__ is preserved
+    if not hasattr(cls, "__annotations__"):
+        namespace["__annotations__"] = {}
+
     # Create a new class with the same name, bases, and namespace, but with ContextData as metaclass
     return ContextData(cls.__name__, cls.__bases__, namespace)
